@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HCP ERP - نظام إدارة موارد المؤسسة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        secondary: '#F9FAFB',
+                        dark: {
+                            primary: '#5D5CDE',
+                            secondary: '#1F2937',
+                        }
+                    },
+                },
+            },
+        }
+
+        // تفعيل الوضع الداكن
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Cairo', sans-serif;
+        }
+
+        /* لإصلاح مشكلة الانحناء أثناء فتح القائمة الجانبية على الأجهزة المحمولة */
+        .overflow-hidden {
+            overflow: hidden;
+        }
+
+        /* تخصيص شكل scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #5D5CDE;
+            border-radius: 8px;
+        }
+
+        /* تحريك المؤشر عند الضغط على الروابط */
+        .nav-item:hover {
+            transform: translateX(-3px);
+            transition: transform 0.2s ease-in-out;
+        }
+
+        /* تأثيرات الانتقال */
+        .transition-all {
+            transition: all 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 dark:text-white" x-data="{ sidebarOpen: window.innerWidth >= 768, notificationOpen: false, profileOpen: false, mobileNav: false }">
+    
+    <!-- القائمة العلوية -->
+    <header class="bg-white dark:bg-gray-800 shadow fixed top-0 right-0 left-0 z-10 h-16">
+        <div class="mx-auto px-4 sm:px-6 lg:px-8 h-full">
+            <div class="flex justify-between items-center h-full">
+                <!-- زر فتح/إغلاق القائمة الجانبية على الأجهزة المحمولة -->
+                <button @click="mobileNav = !mobileNav" class="md:hidden focus:outline-none">
+                    <i class="fas fa-bars text-primary dark:text-primary text-2xl"></i>
+                </button>
+
+                <!-- شعار النظام -->
+                <div class="flex items-center md:mr-6">
+                    <span class="text-xl font-bold text-primary dark:text-primary">HCP ERP</span>
+                </div>
+
+                <!-- البحث والإشعارات وملف المستخدم -->
+                <div class="flex items-center space-x-4 space-x-reverse">
+                    <!-- البحث -->
+                    <div class="hidden md:flex items-center relative">
+                        <input type="text" placeholder="بحث..." class="py-2 px-4 pr-10 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white w-48 lg:w-64" />
+                        <i class="fas fa-search absolute right-3 text-gray-400"></i>
+                    </div>
+
+                    <!-- الإشعارات -->
+                    <div class="relative" x-data="{ count: 3 }">
+                        <button @click="notificationOpen = !notificationOpen; profileOpen = false" class="text-gray-500 hover:text-primary dark:text-gray-300 dark:hover:text-primary focus:outline-none relative">
+                            <i class="fas fa-bell text-lg"></i>
+                            <span x-show="count > 0" class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full text-xs px-1.5">{{ count }}</span>
+                        </button>
+
+                        <!-- قائمة الإشعارات -->
+                        <div x-show="notificationOpen" @click.away="notificationOpen = false" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="origin-top-left absolute left-0 mt-2 w-80 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-10" style="max-height: 350px; overflow-y: auto;" x-cloak>
+                            <div class="py-1 divide-y divide-gray-200 dark:divide-gray-700">
+                                <div class="flex justify-between items-center px-4 py-2">
+                                    <h3 class="text-sm font-medium">الإشعارات</h3>
+                                    <button @click="count = 0" class="text-xs text-primary hover:underline">تعيين كمقروءة</button>
+                                </div>
+                                <a href="#" class="block px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    <div class="flex">
+                                        <div class="flex-shrink-0 bg-blue-500 rounded-full p-1 text-white">
+                                            <i class="fas fa-shopping-cart text-xs"></i>
+                                        </div>
+                                        <div class="mr-3">
+                                            <p class="text-sm font-medium">طلب جديد</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">تم إضافة طلب جديد من العميل أحمد محمد</p>
+                                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">منذ ساعتين</p>
+                                        </div>
+                                    </div>
+                                </a>
+                                <a href="#" class="block px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    <div class="flex">
+                                        <div class="flex-shrink-0 bg-red-500 rounded-full p-1 text-white">
+                                            <i class="fas fa-exclamation-triangle text-xs"></i>
+                                        </div>
+                                        <div class="mr-3">
+                                            <p class="text-sm font-medium">تنبيه المخزون</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">مخزون الدهان الخارجي A5021 منخفض</p>
+                                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">منذ 5 ساعات</p>
+                                        </div>
+                                    </div>
+                                </a>
+                                <a href="#" class="block px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    <div class="flex">
+                                        <div class="flex-shrink-0 bg-green-500 rounded-full p-1 text-white">
+                                            <i class="fas fa-money-bill-wave text-xs"></i>
+                                        </div>
+                                        <div class="mr-3">
+                                            <p class="text-sm font-medium">دفعة مستلمة</p>
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">تم استلام دفعة بقيمة 2500 ج.م من شركة المستقبل</p>
+                                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">منذ يوم واحد</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ملف المستخدم -->
+                    <div class="relative">
+                        <button @click="profileOpen = !profileOpen; notificationOpen = false" class="flex items-center space-x-2 space-x-reverse focus:outline-none">
+                            <img src="https://i.imgur.com/cgzxvPt.jpg" alt="صورة المستخدم" class="w-8 h-8 rounded-full border-2 border-primary" />
+                            <div class="hidden md:block text-right">
+                                <div class="text-sm font-medium">أحمد عبد الرحمن</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">مدير النظام</div>
+                            </div>
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </button>
+
+                        <!-- قائمة ملف المستخدم -->
+                        <div x-show="profileOpen" @click.away="profileOpen = false" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="origin-top-left absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 py-1" x-cloak>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i class="fas fa-user-circle mr-2 text-primary"></i>
+                                <span>الملف الشخصي</span>
+                            </a>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i class="fas fa-cog mr-2 text-primary"></i>
+                                <span>الإعدادات</span>
+                            </a>
+                            <div class="border-t border-gray-200 dark:border-gray-700"></div>
+                            <a href="#" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                <i class="fas fa-sign-out-alt mr-2"></i>
+                                <span>تسجيل الخروج</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- القائمة الجانبية للجوال -->
+    <div x-show="mobileNav" @click.away="mobileNav = false" class="fixed top-16 right-0 bottom-0 w-64 bg-white dark:bg-gray-800 shadow-lg z-30 transform transition-transform duration-300 ease-in-out md:hidden" :class="mobileNav ? 'translate-x-0' : 'translate-x-full'" x-cloak>
+        <div class="h-full overflow-y-auto pb-20">
+            <nav class="px-4 py-4">
+                <div class="space-y-1">
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-white bg-primary rounded-lg mb-1 nav-item">
+                        <i class="fas fa-tachometer-alt w-5 h-5 ml-2"></i>
+                        <span>لوحة التحكم</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-users w-5 h-5 ml-2"></i>
+                        <span>العملاء</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-truck w-5 h-5 ml-2"></i>
+                        <span>الموردين</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-shopping-cart w-5 h-5 ml-2"></i>
+                        <span>المبيعات</span>
+                        <span class="inline-flex items-center justify-center w-5 h-5 mr-auto bg-red-100 text-red-800 text-xs font-semibold rounded-full">3</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-boxes w-5 h-5 ml-2"></i>
+                        <span>المنتجات</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-calculator w-5 h-5 ml-2"></i>
+                        <span>الحسابات</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-user-shield w-5 h-5 ml-2"></i>
+                        <span>المستخدمين</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-chart-bar w-5 h-5 ml-2"></i>
+                        <span>التقارير</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-cog w-5 h-5 ml-2"></i>
+                        <span>الإعدادات</span>
+                    </a>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- الهيكل الرئيسي للصفحة -->
+    <div class="flex h-screen pt-16 overflow-hidden">
+        <!-- القائمة الجانبية للأجهزة الكبيرة -->
+        <aside :class="{'hidden': !sidebarOpen}" class="fixed inset-y-0 top-16 right-0 hidden md:flex md:w-64 flex-shrink-0 flex-col bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
+            <div class="flex-1 flex flex-col min-h-0 overflow-y-auto">
+                <nav class="flex-1 px-4 py-4 space-y-2">
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-white bg-primary rounded-lg mb-1 nav-item">
+                        <i class="fas fa-tachometer-alt w-5 h-5 ml-2"></i>
+                        <span>لوحة التحكم</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-users w-5 h-5 ml-2"></i>
+                        <span>العملاء</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-truck w-5 h-5 ml-2"></i>
+                        <span>الموردين</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-shopping-cart w-5 h-5 ml-2"></i>
+                        <span>المبيعات</span>
+                        <span class="inline-flex items-center justify-center w-5 h-5 mr-auto bg-red-100 text-red-800 text-xs font-semibold rounded-full">3</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-boxes w-5 h-5 ml-2"></i>
+                        <span>المنتجات</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-calculator w-5 h-5 ml-2"></i>
+                        <span>الحسابات</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-user-shield w-5 h-5 ml-2"></i>
+                        <span>المستخدمين</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-chart-bar w-5 h-5 ml-2"></i>
+                        <span>التقارير</span>
+                    </a>
+                    
+                    <a href="#" class="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg mb-1 nav-item">
+                        <i class="fas fa-cog w-5 h-5 ml-2"></i>
+                        <span>الإعدادات</span>
+                    </a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- المحتوى الرئيسي -->
+        <main class="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-900 px-4 py-4 md:mr-64">
+            <div class="max-w-7xl mx-auto">
+                <!-- عنوان الصفحة -->
+                <div class="pb-5 border-b border-gray-200 dark:border-gray-700 sm:flex sm:items-center sm:justify-between">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">لوحة التحكم</h3>
+                    <div class="mt-3 sm:mt-0 sm:ml-4">
+                        <div class="flex rounded-md shadow-sm">
+                            <button type="button" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-md text-white bg-primary hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition ease-in-out duration-150">
+                                <i class="fas fa-plus ml-2"></i>
+                                <span>طلب جديد</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- البطاقات الإحصائية -->
+                <div class="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                    <!-- إجمالي المبيعات -->
+                    <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                                    <i class="fas fa-shopping-cart text-white"></i>
+                                </div>
+                                <div class="mr-5">
+                                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">إجمالي المبيعات (هذا الشهر)</div>
+                                    <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">125,350 ج.م</div>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <div class="flex items-center">
+                                    <div class="text-sm font-medium text-green-500">
+                                        <i class="fas fa-arrow-up ml-1"></i>+14.5%
+                                    </div>
+                                    <div class="text-sm text-gray-500 dark:text-gray-400 mr-2">مقارنة بالشهر السابق</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- عدد الطلبات -->
+                    <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                                    <i class="fas fa-clipboard-list text-white"></i>
+                                </div>
+                                <div class="mr-5">
+                                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">عدد الطلبات (هذا الشهر)</div>
+                                    <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">48</div>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <div class="flex items-center">
+                                    <div class="text-sm font-medium text-green-500">
+                                        <i class="fas fa-arrow-up ml-1"></i>+5.2%
+                                    </div>
+                                    <div class="text-sm text-gray-500 dark:text-gray-400 mr-2">مقارنة بالشهر السابق</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- العملاء الجدد -->
+                    <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 bg-orange-500 rounded-md p-3">
+                                    <i class="fas fa-user-plus text-white"></i>
+                                </div>
+                                <div class="mr-5">
+                                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">العملاء الجدد (هذا الشهر)</div>
+                                    <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">12</div>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <div class="flex items-center">
+                                    <div class="text-sm font-medium text-red-500">
+                                        <i class="fas fa-arrow-down ml-1"></i>-2.1%
+                                    </div>
+                                    <div class="text-sm text-gray-500 dark:text-gray-400 mr-2">مقارنة بالشهر السابق</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- الطلبات المعلقة -->
+                    <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                        <div class="p-5">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 bg-red-500 rounded-md p-3">
+                                    <i class="fas fa-clock text-white"></i>
+                                </div>
+                                <div class="mr-5">
+                                    <div class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">الطلبات المعلقة</div>
+                                    <div class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">7</div>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <a href="#" class="text-sm text-primary hover:underline">عرض جميع الطلبات المعلقة</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الرسوم البيانية والبيانات الأخرى -->
+                <div class="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+                    <!-- مخطط المبيعات -->
+                    <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                        <div class="px-4 py-5 sm:p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-base font-medium text-gray-900 dark:text-white">إحصائيات المبيعات</h3>
+                                <div class="relative">
+                                    <select class="appearance-none block px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white">
+                                        <option>هذا العام</option>
+                                        <option>هذا الشهر</option>
+                                        <option>هذا الأسبوع</option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-500 dark:text-gray-400">
+                                        <i class="fas fa-chevron-down text-xs"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <canvas id="salesChart" height="225"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- المنتجات الأكثر مبيعًا -->
+                    <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+                        <div class="px-4 py-5 sm:p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-base font-medium text-gray-900 dark:text-white">المنتجات الأكثر مبيعًا</h3>
+                                <div class="relative">
+                                    <select class="appearance-none block px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white">
+                                        <option>هذا الشهر</option>
+                                        <option>هذا الأسبوع</option>
+                                        <option>هذا اليوم</option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center px-2 text-gray-500 dark:text-gray-400">
+                                        <i class="fas fa-chevron-down text-xs"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <canvas id="productsChart" height="225"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- أحدث الطلبات -->
+                <div class="mt-5">
+                    <div class="bg-white dark:bg-gray-800 shadow rounded-lg">
+                        <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+                            <h3 class="text-base font-medium leading-6 text-gray-900 dark:text-white">أحدث الطلبات</h3>
+                            <a href="#" class="text-sm text-primary hover:underline">عرض الكل</a>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                <thead class="bg-gray-50 dark:bg-gray-700">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">رقم الطلب</th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">العميل</th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">المنتجات</th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الإجمالي</th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">الحالة</th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">التاريخ</th>
+                                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">العمليات</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">#ORD-5523</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">شركة المستقبل للمقاولات</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">دهانات خارجية (5)</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">8,750 ج.م</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">قيد التنفيذ</span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">15/09/2023</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
+                                            <button class="text-primary hover:text-indigo-900 ml-2" title="عرض"><i class="fas fa-eye"></i></button>
+                                            <button class="text-blue-500 hover:text-blue-700 ml-2" title="تعديل"><i class="fas fa-edit"></i></button>
+                                            <button class="text-red-500 hover:text-red-700" title="حذف"><i class="fas fa-trash-alt"></i></button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">#ORD-5522</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">محمد أحمد علي</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">دهانات ديكورية (3)</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">3,200 ج.م</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">تم التسليم</span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">14/09/2023</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
+                                            <button class="text-primary hover:text-indigo-900 ml-2" title="عرض"><i class="fas fa-eye"></i></button>
+                                            <button class="text-blue-500 hover:text-blue-700 ml-2" title="تعديل"><i class="fas fa-edit"></i></button>
+                                            <button class="text-red-500 hover:text-red-700" title="حذف"><i class="fas fa-trash-alt"></i></button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">#ORD-5521</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">مؤسسة الرواد للتجارة</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">دهانات إنشائية (10)</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">12,600 ج.م</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">ملغي</span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">13/09/2023</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
+                                            <button class="text-primary hover:text-indigo-900 ml-2" title="عرض"><i class="fas fa-eye"></i></button>
+                                            <button class="text-blue-500 hover:text-blue-700 ml-2" title="تعديل"><i class="fas fa-edit"></i></button>
+                                            <button class="text-red-500 hover:text-red-700" title="حذف"><i class="fas fa-trash-alt"></i></button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">#ORD-5520</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">أحمد محمود سعيد</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">دهانات خارجية (2)</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">4,300 ج.م</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">قيد الشحن</span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">12/09/2023</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
+                                            <button class="text-primary hover:text-indigo-900 ml-2" title="عرض"><i class="fas fa-eye"></i></button>
+                                            <button class="text-blue-500 hover:text-blue-700 ml-2" title="تعديل"><i class="fas fa-edit"></i></button>
+                                            <button class="text-red-500 hover:text-red-700" title="حذف"><i class="fas fa-trash-alt"></i></button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
+                            <div class="flex-1 flex justify-between sm:hidden">
+                                <a href="#" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                    السابق
+                                </a>
+                                <a href="#" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                    التالي
+                                </a>
+                            </div>
+                            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                                <div>
+                                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                                        عرض <span class="font-medium">1</span> إلى <span class="font-medium">4</span> من أصل <span class="font-medium">25</span> نتيجة
+                                    </p>
+                                </div>
+                                <div>
+                                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px space-x-reverse" aria-label="Pagination">
+                                        <a href="#" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                            <span class="sr-only">السابق</span>
+                                            <i class="fas fa-chevron-right"></i>
+                                        </a>
+                                        <a href="#" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-primary text-sm font-medium text-white hover:bg-indigo-700">
+                                            1
+                                        </a>
+                                        <a href="#" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                            2
+                                        </a>
+                                        <a href="#" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                            3
+                                        </a>
+                                        <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            ...
+                                        </span>
+                                        <a href="#" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                            8
+                                        </a>
+                                        <a href="#" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600">
+                                            <span class="sr-only">التالي</span>
+                                            <i class="fas fa-chevron-left"></i>
+                                        </a>
+                                    </nav>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تذييل الصفحة -->
+                <footer class="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <p>© 2023 شركة HCP لتوزيع الدهانات. جميع الحقوق محفوظة.</p>
+                </footer>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // زر لطي/فتح القائمة الجانبية على الأجهزة الكبيرة
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleButton = document.createElement('button');
+            toggleButton.className = 'fixed bottom-4 right-4 md:right-68 bg-primary text-white p-2 rounded-full shadow-lg z-30 hover:bg-indigo-700 transition-all duration-300 hidden md:block';
+            toggleButton.innerHTML = '<i class="fas fa-chevron-right"></i>';
+            toggleButton.title = 'طي/فتح القائمة';
+            document.body.appendChild(toggleButton);
+
+            toggleButton.addEventListener('click', function() {
+                const app = Alpine.getScope(document.body, '$data');
+                app.sidebarOpen = !app.sidebarOpen;
+                
+                if (app.sidebarOpen) {
+                    toggleButton.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                    toggleButton.classList.remove('right-4');
+                    toggleButton.classList.add('right-68');
+                } else {
+                    toggleButton.innerHTML = '<i class="fas fa-chevron-left"></i>';
+                    toggleButton.classList.remove('right-68');
+                    toggleButton.classList.add('right-4');
+                }
+            });
+        });
+
+        // مخطط المبيعات
+        document.addEventListener('DOMContentLoaded', function() {
+            const salesCtx = document.getElementById('salesChart').getContext('2d');
+            const salesChart = new Chart(salesCtx, {
+                type: 'line',
+                data: {
+                    labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر'],
+                    datasets: [{
+                        label: 'المبيعات (بالألف جنيه)',
+                        data: [65, 78, 90, 85, 92, 110, 105, 115, 125],
+                        backgroundColor: 'rgba(93, 92, 222, 0.1)',
+                        borderColor: '#5D5CDE',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        pointBackgroundColor: '#5D5CDE',
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            padding: 10,
+                            titleColor: '#fff',
+                            titleFont: {
+                                size: 14
+                            },
+                            bodyColor: '#fff',
+                            bodyFont: {
+                                size: 14
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            // تحديث مخطط المبيعات عند تغيير وضع الإضاءة
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+                if (event.matches) {
+                    // الوضع الداكن
+                    salesChart.options.scales.y.grid.color = 'rgba(255, 255, 255, 0.1)';
+                } else {
+                    // الوضع الفاتح
+                    salesChart.options.scales.y.grid.color = 'rgba(0, 0, 0, 0.05)';
+                }
+                salesChart.update();
+            });
+
+            // مخطط المنتجات الأكثر مبيعًا
+            const productsCtx = document.getElementById('productsChart').getContext('2d');
+            const productsChart = new Chart(productsCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['دهانات إنشائية', 'دهانات خارجية', 'دهانات ديكورية'],
+                    datasets: [{
+                        data: [35, 45, 20],
+                        backgroundColor: [
+                            '#5D5CDE',
+                            '#FF6384',
+                            '#36A2EB'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 15,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            padding: 10,
+                            titleColor: '#fff',
+                            titleFont: {
+                                size: 14
+                            },
+                            bodyColor: '#fff',
+                            bodyFont: {
+                                size: 14
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.formattedValue + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
